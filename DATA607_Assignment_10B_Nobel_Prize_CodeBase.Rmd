@@ -1,0 +1,133 @@
+---
+title: "DATA607_Assignment_10B_Nobel_Prize_CodeBase"
+author: "Muntasir Mehran"
+date: "2026-11-09"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+This assignment applied JSON data from the Nobel Prize API to investigate patterns in Nobel Prize awards. Implementing R, I would analyze categories, laureates' birth nations, historical trends, and international research connections. The objective is to display how JSON data can be transformed into tidy data frames to respond compelling queries. 
+
+```{r}
+
+library(jsonlite)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(purrr)
+
+url <- "https://api.nobelprize.org/v1/laureate.json"
+
+raw <- fromJSON(url, simplifyVector = FALSE)
+
+laureates <- map_dfr(raw$laureates, function(x) {
+  tibble(
+    id = x$id,
+    name = paste(x$firstname %||% "",
+                 x$surname %||% ""),
+    birth_country = x$bornCountry %||% NA_character_,
+    gender = x$gender %||% NA_character_
+  )
+})
+
+awards <- map_dfr(raw$laureates, function(x) {
+  map_dfr(x$prizes, function(p) {
+    tibble(
+      id = x$id,
+      year = as.integer(p$year),
+      category = p$category
+    )
+  })
+})
+
+head(laureates)
+head(awards)
+```
+
+
+```
+## Q1 - Which Nobel Prize categories contain the most laureate awards?
+```{r}
+
+```{r}
+q1 <- awards |>
+  count(category, sort = TRUE)
+
+q1
+
+ggplot(q1, aes(x = reorder(category, n), y = n)) +
+  geom_col(fill = "steelblue") +
+  coord_flip() +
+  labs(
+    title = "Nobel Laureate Awards by Category",
+    x = "Category",
+    y = "Number of laureate awards"
+  ) +
+  theme_minimal()
+```
+
+```
+## Q3 - Which birth nation have produced the most laureates?
+```{r}
+
+```{r}
+q2 <- laureates |>
+  filter(!is.na(birth_country)) |>
+  count(birth_country, sort = TRUE) |>
+  head(10)
+
+q2
+```
+
+```
+Q3 - How have Nobel laureate awards changed by decade ?
+```{r}
+
+```{r}
+q3 <- awards |>
+  mutate(decade = (year %/% 10) * 10) |>
+  count(decade)
+
+q3
+
+ggplot(q3, aes(x = decade, y = n)) +
+  geom_line() +
+  geom_point() +
+  labs(
+    title = "Nobel Laureate Awards by Decade",
+    x = "Decade",
+    y = "Number of laureate awards"
+  ) +
+  theme_minimal()
+```
+
+```
+Q4 - Which birth countries have produced the most laureates who won awards in different categories?
+```{r}
+
+```{r}
+q4 <- laureates |>
+  inner_join(awards, by = "id") |>
+  filter(!is.na(birth_country)) |>
+  group_by(id, name, birth_country) |>
+  summarise(
+    categories = n_distinct(category),
+    .groups = "drop"
+  ) |>
+  filter(categories > 1) |>
+  count(birth_country, sort = TRUE)
+
+q4
+```
+
+```
+## Conclusion
+The analysis indicades that Novel Prize JSON data can indeed be retrieved, cleaned, and transformed using R. The fours questions hoped to implement a means to distinguish award categories, nations, and time periods, in which a final question utilizes a join to pinpoint laureates acknowledged in various fields. 
+
+Restrctions can exist in terms of country information, historical shifts in nation names, and discrepencies amongst laureate counts and awards quantity. Potential analysis can hope to explore gender representation or international research collaboration. 
+
+
